@@ -300,7 +300,35 @@ object Lab5 extends jsy.util.JsyApplication {
           case Some(x) => substitute(e1, v1, x)
         }
         (v1, args) match {
+          case (Function(p, Left(params),_,e1), args) if (params.length == args.length) => {
+            val e1p = (params, args).zipped.foldRight(e1) {
+              (h, acc) => substitute(acc, h._2, h._1._1)
+            }
+            p match {
+              case None => doreturn(e1p)
+              case Some(x1) => doreturn(substitute(e1p, v1, x1))
+            }
+          }
           /*** Fill-in the DoCall cases, the SearchCall2, the SearchCallVar, the SearchCallRef  ***/
+          case (Function(p, Right((PVar,x,_)), _, e1),v2 :: Nil) if isValue(v2) => {
+        	  Mem.alloc(v1) map {a => substfun(substitute(e1, Unary(Deref, a), x), p)}
+          }
+          
+          case (Function(p, Right((PVar, x, _)), _, e1), e2 :: Nil) =>
+            step(e2) map {e2p => Call(v1, e2p :: Nil)}
+          
+          case (Function(p, Right((PRef,x,_)), _, e1),lv2 :: Nil) if isLValue(lv2) => {
+        	  val e1p = substitute(e1, lv2, x)
+        	  val e1pp = substfun(e1p, p)
+        	  doreturn(e1pp)
+          }
+          
+          case (Function(p, Right((PRef, x, _)), _, e1), e2 :: Nil) =>
+            step(e2) map {e2p => Call(v1, e2p :: Nil)}
+          
+          case (Function(p, Right((PName, x1, _)), _, e1), e2 :: Nil) =>
+            doreturn(substfun(substitute(e1,e2,x1),p))
+            
           case _ => throw StuckError(e)
         } 
       
@@ -335,7 +363,9 @@ object Lab5 extends jsy.util.JsyApplication {
       case GetField(e1, f) => throw new UnsupportedOperationException
       
       /*** Fill-in more Search cases here. ***/
-
+      case Call(e1, e2) => {
+        for (e1p <- step(e1)) yield Call(e1p, e2)
+      }
       /* Everything else is a stuck error. */
       case _ => throw StuckError(e)
     }
