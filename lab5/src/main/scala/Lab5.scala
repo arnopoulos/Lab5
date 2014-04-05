@@ -194,7 +194,7 @@ object Lab5 extends jsy.util.JsyApplication {
       /*** Fill-in more cases here. ***/
       case Null => TNull
       
-      case Unary(Cast(t),e1) => println(castOk(t,typ(e1)));if (castOk(t,typ(e1))) t else err(typ(e1),e1) 
+      case Unary(Cast(t),e1) => println(castOk(t,typ(e1)));if (castOk(t,typ(e1)) && t != TNull) t else err(typ(e1),e1) 
       
       case Decl(mut,x,e1,e2) => typeInfer(env + (x -> (mut,typ(e1))),typSubstituteExpr(typ(e1), x, e2))
       case Assign(e1,e2) => typ(e1) match {
