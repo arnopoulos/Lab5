@@ -333,8 +333,7 @@ object Lab5 extends jsy.util.JsyApplication {
         } 
       
       case Decl(MConst, x, v1, e2) if isValue(v1) => doreturn(substitute(e2,v1,x))
-//      case Decl(MVar, x, v1, e2) if isValue(v1) =>
-//      case Decl(MVar, x, v1, e2) if isValue(v1) => Mem.alloc(v1) map { a => substitute(e2, Unary(Deref, a), x) }
+      case Decl(MVar, x, v1, e2) if isValue(v1) => Mem.alloc(v1) map { a => substitute(e2, Unary(Deref, a), x) }
 
       case Assign(Unary(Deref, a @ A(_)), v) if isValue(v) =>
         for (_ <- domodify { (m: Mem) => (throw new UnsupportedOperationException): Mem }) yield v
@@ -363,9 +362,12 @@ object Lab5 extends jsy.util.JsyApplication {
       case GetField(e1, f) => throw new UnsupportedOperationException
       
       /*** Fill-in more Search cases here. ***/
-      case Call(e1, e2) => {
-        for (e1p <- step(e1)) yield Call(e1p, e2)
+      case Decl(mut, x, e1, e2) => {
+        for (e1p <- step(e1)) yield Decl(mut, x, e1p, e2)
       }
+      case Call(e1, e2) =>
+        for (e1p <- step(e1)) yield Call(e1p, e2)
+        
       /* Everything else is a stuck error. */
       case _ => throw StuckError(e)
     }
