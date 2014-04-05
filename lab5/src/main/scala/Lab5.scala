@@ -243,6 +243,15 @@ object Lab5 extends jsy.util.JsyApplication {
       case If(e1, e2, e3) => If(subst(e1), subst(e2), subst(e3))
       case Var(y) => if (x == y) esub else e
       case Decl(mut, y, e1, e2) => Decl(mut, y, subst(e1), if (x == y) e2 else subst(e2))
+      case Function(p, Left(params), retty, e1) => p match {
+        case Some(p) => 
+          val blah = params.foldLeft(true){(acc, h) => if (x != h._1 && x != p) acc && true else acc && false}
+    	  if (blah == true) Function(Some(p), Left(params), retty, subst(e1)) else e
+        case None => 
+          val blah = params.foldLeft(true){(acc, h) => if (x != h._1) acc && true else acc && false}
+          if(blah == true) Function(None, Left(params), retty, subst(e1)) else e
+        
+      }
       case Function(p, paramse, retty, e1) => (p,paramse) match {
         case (Some(f),Right((pmd,pn,t))) if (x != f && x != pn) => Function(p,paramse,retty,subst(e1))
         case (None,Right((pmd,pn,t))) if (x != pn) => Function(p,paramse,retty,subst(e1))
