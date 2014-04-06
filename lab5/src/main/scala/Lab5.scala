@@ -302,9 +302,19 @@ object Lab5 extends jsy.util.JsyApplication {
       case Binary(Times, N(n1), N(n2)) => doreturn( N(n1 * n2) )
       case Binary(Div, N(n1), N(n2)) => doreturn( N(n1 / n2) )
       case If(B(b1), e2, e3) => doreturn( if (b1) e2 else e3 )
-      case Obj(fields) if (fields forall { case (_, vi) => isValue(vi)}) => doreturn(e)
-      case GetField(a @ A(_), f) =>
-        throw new UnsupportedOperationException
+      case Obj(fields) if (fields forall { case (_, vi) => isValue(vi)}) => {
+        Mem.alloc(Obj(fields)) map {(a:A) => a:Expr}
+      }
+      case GetField(a @ A(_), f) => {
+        doget.map((m: Mem) => m.get(a) match {
+          case Some(Obj(fields)) => fields.get(f) match {
+            case Some(f) => f
+            case None => throw StuckError(e)
+          }
+          case _ => throw StuckError(e)
+        }  
+        )
+      }
         
       case Call(v1, args) if isValue(v1) =>
         def substfun(e1: Expr, p: Option[String]): Expr = p match {
@@ -371,7 +381,8 @@ object Lab5 extends jsy.util.JsyApplication {
           throw new UnsupportedOperationException
         case None => throw StuckError(e)
       }
-      case GetField(e1, f) => throw new UnsupportedOperationException
+      case GetField(e1, f) =>
+        for (e1p <- step(e1)) yield GetField(e1p, f)
       
       /*** Fill-in more Search cases here. ***/
       case Decl(mut, x, e1, e2) => {
