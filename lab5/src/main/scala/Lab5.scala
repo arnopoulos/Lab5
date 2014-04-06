@@ -48,12 +48,18 @@ object Lab5 extends jsy.util.JsyApplication {
   def castOk(t1: Typ, t2: Typ): Boolean = (t1, t2) match {
     case (TNull, TObj(_)) => true
     case (_, _) if (t1 == t2) => true
-    case (TObj(fields1), TObj(fields2)) => {
+    /*case (TObj(fields1), TObj(fields2)) => {
       fields1.keys.foldLeft(true)((ktb,k) => {
           if (!ktb) fields1(k) == fields2(k)
           else ktb
         })
-    }
+    }*/
+    case (TObj(fields1), TObj(fields2)) => fields1.keys.foldLeft(true){
+    	  (acc, key) => (fields1.get(key), fields2.get(key)) match {
+    	    case (f1Typ, f2Typ) if(f1Typ == None || f2Typ == None) => acc && true 
+    	    case (Some(f1Typ), Some(f2Typ)) => acc && castOk(f1Typ, f2Typ)
+    	  }
+    	}
     case (TInterface(tvar, t1p), _) => castOk(typSubstitute(t1p, t1, tvar), t2)
     case (_, TInterface(tvar, t2p)) => castOk(t1, typSubstitute(t2p, t2, tvar))
     case _ => false
@@ -164,7 +170,11 @@ object Lab5 extends jsy.util.JsyApplication {
           case Left(params) => env1 ++ params.foldLeft(Map[String,(Mutability,Typ)]())((m,p) => {
             m + (p._1 -> (MVar,p._2))
           })
-          case Right((mode,x,t)) => env1 + (x -> (mut(mode),t))
+          case Right((mode,x,t)) => mode match {
+            case PName => env1 + (x -> (MConst, t))
+            case PVar => env1 + (x -> (MVar, t))
+            case PRef => env1 + (x -> (MVar, t))
+          }
         }
         // Infer the type of the function body
         val t1 = typeInfer(env2, e1)
@@ -182,21 +192,20 @@ object Lab5 extends jsy.util.JsyApplication {
           }
           tret
         }
-        case tgot @ TFunction(Right((mode,_,tparam)), tret) => args.foldLeft(None:Option[Typ])((t,p) => t match {
-          case None if (typ(p) == tparam) => Some(tparam)
-        }) match {
-          case None => err(tparam,e1)
-          case Some(t) => t
+        case tgot @ TFunction(Right((mode,_,tparam)), tret) => if (args.length == 0) err(tparam, e1) else mode match {
+          case (PName | PVar) => if (tparam == typ(args.head)) tparam else err(tparam, e1)
+          case PRef => if (isLExpr(args.head) && (tparam == typ(args.head))) tret else err(tparam, e1)
         }
+        
         case tgot => err(tgot, e1)
       }
       
       /*** Fill-in more cases here. ***/
       case Null => TNull
       
-      case Unary(Cast(t),e1) => println(castOk(t,typ(e1)));if (castOk(t,typ(e1)) && t != TNull) t else err(typ(e1),e1) 
+      case Unary(Cast(t),e1) => if (castOk(t,typ(e1)) && t != TNull) t else err(typ(e1),e1) 
       
-      case Decl(mut,x,e1,e2) => typeInfer(env + (x -> (mut,typ(e1))),typSubstituteExpr(typ(e1), x, e2))
+      case Decl(mut,x,e1,e2) => typeInfer(env + (x -> (mut,typ(e1))),e2)
       case Assign(e1,e2) => typ(e1) match {
         case t @ TVar(vn) if (typ(e2) == t) => t
         case t => err(t,e2)
@@ -332,20 +341,19 @@ object Lab5 extends jsy.util.JsyApplication {
             }
           }
           /*** Fill-in the DoCall cases, the SearchCall2, the SearchCallVar, the SearchCallRef  ***/
-          case (Function(p, Right((PVar,x,_)), _, e1),v2 :: Nil) if isValue(v2) => {
-        	  Mem.alloc(v1) map {a => substfun(substitute(e1, Unary(Deref, a), x), p)}
-          }
+          case (Function(p, Right((PVar,x1,_)), _, e1),v2 :: Nil) if isValue(v2) => 
+        	Mem.alloc(v2) map {a => substfun(substitute(e1, Unary(Deref, a), x1), p)}
           
-          case (Function(p, Right((PVar, x, _)), _, e1), e2 :: Nil) =>
+          case (Function(p, Right((PVar, x1, _)), _, e1), e2 :: Nil) =>
             step(e2) map {e2p => Call(v1, e2p :: Nil)}
           
-          case (Function(p, Right((PRef,x,_)), _, e1),lv2 :: Nil) if isLValue(lv2) => {
-        	  val e1p = substitute(e1, lv2, x)
-        	  val e1pp = substfun(e1p, p)
-        	  doreturn(e1pp)
+          case (Function(p, Right((PRef,x1,_)), _, e1),lv2 :: Nil) if isLValue(lv2) => {
+        	val e1p = substitute(e1, lv2, x1)
+        	val e1pp = substfun(e1p, p)
+        	doreturn(e1pp)
           }
           
-          case (Function(p, Right((PRef, x, _)), _, e1), e2 :: Nil) =>
+          case (Function(p, Right((PRef, x1, _)), _, e1), e2 :: Nil) =>
             step(e2) map {e2p => Call(v1, e2p :: Nil)}
           
           case (Function(p, Right((PName, x1, _)), _, e1), e2 :: Nil) =>
