@@ -1,0 +1,23 @@
+interface Address {streetName:string;streetNumber:number;cityName:string;stateName:string}
+
+const Address = function(sname:string,snumber:number,cname:string,stname:string){
+	return {streetName:sname,streetNumber:snumber,cityName:cname,stateName:stname}
+};
+
+var school = Address("Engineering Dr.",1111,"Boulder","Denver")
+console.log(school.streetNumber)
+console.log(school.streetName)
+console.log(school.stateName + "," + school.cityName)
+
+var home = Address("Bogus St.", 12345, "Pocus","Hocus")
+console.log(home.streetNumber)
+console.log(home.streetName)
+console.log(home.stateName + "," + home.cityName)
+
+home.streetName = "BS Dr."
+home.streetNumber = 555
+home.cityName = "Boulder"
+home.stateName = "Denver"
+console.log(home.streetNumber)
+console.log(home.streetName)
+console.log(home.stateName + "," + home.cityName)
