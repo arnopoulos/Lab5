@@ -81,7 +81,7 @@ object Lab5 extends jsy.util.JsyApplication {
   def typeInfer(env: Map[String,(Mutability,Typ)], e: Expr): Typ = {
     def typ(e1: Expr) = typeInfer(env, e1)
     def err[T](tgot: Typ, e1: Expr): T = throw new StaticTypeError(tgot, e1, e)
-    println("typeInfer! env: " + env + "    e: " + e)
+    //println("typeInfer! env: " + env + "    e: " + e)
     e match {
       case Print(e1) => typ(e1); TUndefined
       case N(_) => TNumber
@@ -301,6 +301,7 @@ object Lab5 extends jsy.util.JsyApplication {
       case PRef => isLValue(arg)
     }
     //println(e)
+    //println("STEPPING WITH e: " + e)
     /*** Body ***/
     e match {
       /* Base Cases: Do Rules */
@@ -373,16 +374,21 @@ object Lab5 extends jsy.util.JsyApplication {
       case Decl(MConst, x, v1, e2) if isValue(v1) => doreturn(substitute(e2,v1,x))
       case Decl(MVar, x, v1, e2) if isValue(v1) => Mem.alloc(v1) map { a => substitute(e2, Unary(Deref, a), x) }
 
-      case Assign(Unary(Deref, a @ A(_)), v) if isValue(v) =>
-        for (_ <- domodify { (m: Mem) => (m+(a,v)): Mem }) yield v
+      case Assign(Unary(Deref, addr @ A(_)), v) if isValue(v) =>
+        for (_ <- domodify { (m: Mem) => (m+(addr,v)): Mem }) yield v
+        
+      case Assign(GetField(addr @ A(_), f), v) if isValue(v) =>
+        for( _ <- domodify { (m: Mem) => m.get(addr) match {
+          case Some(Obj(fields)) => m + (addr -> Obj(fields + (f-> (v))))
+          case None => m
+          case _ => throw StuckError(e)
+          }
+        }) yield v
         
       /*** Fill-in more Do cases here. ***/
       case Unary(Cast(_),e1) if (isValue(e1)) => doreturn(e1)
       
-      case Unary(Deref,addr @ A(_)) => new DoWith[Mem,Expr](mem => mem.get(addr) match {
-        case Some(ex) => (mem,ex)
-        case None => throw StuckError(e)
-      })
+      case Unary(Deref,addr @ A(_)) => doget.map( (m: Mem) => m.apply(addr))
       /* Base Cases: Error Rules */
       /*** Fill-in cases here. ***/
         
@@ -402,16 +408,15 @@ object Lab5 extends jsy.util.JsyApplication {
         case None => throw StuckError(e)
       }
       case GetField(e1, f) =>
-        for (e1p <- step(e1)) yield GetField(e1p, f)
+        if(e1==Null) throw new NullDereferenceError(e1)
+        else for (e1p <- step(e1)) yield GetField(e1p, f)
       
       /*** Fill-in more Search cases here. ***/
       case Decl(mut, x, e1, e2) => {
         for (e1p <- step(e1)) yield Decl(mut, x, e1p, e2)
       }
       
-      case Assign(e1, e2) =>
-        if (isLValue(e1)) for (e2p <- step(e2)) yield Assign(e1, e2p) 
-        else for(e2p <-step(e2)) yield Assign(e1, e2p)
+      case Assign(e1, e2) => if (isLValue(e1)) {for (e2p <- step(e2)) yield Assign(e1, e2p)} else {for (e1p <-step(e1)) yield Assign(e1p, e2)}
         
       case Call(e1, e2) =>
         for (e1p <- step(e1)) yield Call(e1p, e2)
