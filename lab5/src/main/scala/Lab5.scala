@@ -361,7 +361,12 @@ object Lab5 extends jsy.util.JsyApplication {
         for (_ <- domodify { (m: Mem) => (throw new UnsupportedOperationException): Mem }) yield v
         
       /*** Fill-in more Do cases here. ***/
-      case Unary(Cast(_),e1) if (isValue(e1) && e1 != A) => doreturn(e1)
+      case Unary(Cast(_),e1 @ A(_)) if (isValue(e1)) => doreturn(e1)
+      
+      case Unary(Deref,addr @ A(_)) => new DoWith[Mem,Expr](mem => mem.get(addr) match {
+        case Some(ex) => (mem,ex)
+        case None => throw StuckError(e)
+      })
       /* Base Cases: Error Rules */
       /*** Fill-in cases here. ***/
         
