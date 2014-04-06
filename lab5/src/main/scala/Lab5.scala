@@ -351,7 +351,7 @@ object Lab5 extends jsy.util.JsyApplication {
         for (_ <- domodify { (m: Mem) => (throw new UnsupportedOperationException): Mem }) yield v
         
       /*** Fill-in more Do cases here. ***/
-      //case Unary(Cast(ct),e1) if (castOk(ct,typeInfer(Nil:Map[String,(Mutability,Typ)],e1)))=> throw new UnsupportedOperationException
+      case Unary(Cast(_),e1) if (isValue(e1) && e1 != A) => doreturn(e1)
       /* Base Cases: Error Rules */
       /*** Fill-in cases here. ***/
         
