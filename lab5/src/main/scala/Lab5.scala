@@ -168,7 +168,7 @@ object Lab5 extends jsy.util.JsyApplication {
         // Bind to env2 an environment that extends env1 with the parameters.
         val env2 = paramse match {
           case Left(params) => env1 ++ params.foldLeft(Map[String,(Mutability,Typ)]())((m,p) => {
-            m + (p._1 -> (MVar,p._2))
+            m + (p._1 -> (MConst,p._2))
           })
           case Right((mode,x,t)) => mode match {
             case PName => env1 + (x -> (MConst, t))
