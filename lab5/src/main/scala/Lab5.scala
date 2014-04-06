@@ -250,7 +250,7 @@ object Lab5 extends jsy.util.JsyApplication {
   /* Capture-avoiding substitution in e replacing variables x with esub. */
   def substitute(e: Expr, esub: Expr, x: String): Expr = {
     def subst(e: Expr): Expr = substitute(e, esub, x)
-    val ep: Expr = e
+    val ep: Expr = avoidCapture(freeVars(esub),e)
     //println(e)
     ep match {
       case N(_) | B(_) | Undefined | S(_) | Null | A(_) => e
