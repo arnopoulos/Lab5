@@ -81,7 +81,7 @@ object Lab5 extends jsy.util.JsyApplication {
   def typeInfer(env: Map[String,(Mutability,Typ)], e: Expr): Typ = {
     def typ(e1: Expr) = typeInfer(env, e1)
     def err[T](tgot: Typ, e1: Expr): T = throw new StaticTypeError(tgot, e1, e)
-
+    println("typeInfer! env: " + env + "    e: " + e)
     e match {
       case Print(e1) => typ(e1); TUndefined
       case N(_) => TNumber
@@ -203,12 +203,20 @@ object Lab5 extends jsy.util.JsyApplication {
       /*** Fill-in more cases here. ***/
       case Null => TNull
       
-      case Unary(Cast(t),e1) => if (castOk(t,typ(e1)) && t != TNull) t else err(typ(e1),e1) 
+      case Unary(Cast(t),e1) => if (castOk(typ(e1),t) && (t != TNull)) t else err(typ(e1),e1) 
       
       case Decl(mut,x,e1,e2) => typeInfer(env + (x -> (mut,typ(e1))),e2)
-      case Assign(e1,e2) => typ(e1) match {
-        case t @ TVar(vn) if (typ(e2) == t) => t
-        case t => err(t,e2)
+      
+      case Assign(e1,e2) => e1 match {
+        case Var(x) => env.get(x) match {
+          case Some((MVar, t)) => 
+            if (t == typ(e2)) typeInfer(env + (x->(MVar, typ(e2))), e2) 
+            else err(t, e2)
+          case Some((MConst, t)) => err(t, e2)
+          case _ => typeInfer(env + (x -> (MVar, typ(e2))), e2)
+        }
+        case GetField(x1, f) => typeInfer(env + (f -> (MConst, typ(e1))), e2)
+        case _ => err(typ(e1),e2)
       }
         
       /* Should not match: non-source expressions or should have been removed */
@@ -243,7 +251,7 @@ object Lab5 extends jsy.util.JsyApplication {
   def substitute(e: Expr, esub: Expr, x: String): Expr = {
     def subst(e: Expr): Expr = substitute(e, esub, x)
     val ep: Expr = e
-    println(e)
+    //println(e)
     ep match {
       case N(_) | B(_) | Undefined | S(_) | Null | A(_) => e
       case Print(e1) => Print(subst(e1))
@@ -390,8 +398,7 @@ object Lab5 extends jsy.util.JsyApplication {
       case If(e1, e2, e3) =>
         for (e1p <- step(e1)) yield If(e1p, e2, e3)
       case Obj(fields) => fields find { case (_, ei) => !isValue(ei) } match {
-        case Some((fi,ei)) =>
-          throw new UnsupportedOperationException
+        case Some((fi,ei)) => for (eip <- step(ei)) yield Obj(fields + (fi -> eip))
         case None => throw StuckError(e)
       }
       case GetField(e1, f) =>
@@ -401,6 +408,11 @@ object Lab5 extends jsy.util.JsyApplication {
       case Decl(mut, x, e1, e2) => {
         for (e1p <- step(e1)) yield Decl(mut, x, e1p, e2)
       }
+      
+      case Assign(e1, e2) =>
+        if (isLValue(e1)) for (e2p <- step(e2)) yield Assign(e1, e2p) 
+        else for(e2p <-step(e2)) yield Assign(e1, e2p)
+        
       case Call(e1, e2) =>
         for (e1p <- step(e1)) yield Call(e1p, e2)
         
