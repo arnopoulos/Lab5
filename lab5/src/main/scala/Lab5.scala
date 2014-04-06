@@ -374,7 +374,7 @@ object Lab5 extends jsy.util.JsyApplication {
       case Decl(MVar, x, v1, e2) if isValue(v1) => Mem.alloc(v1) map { a => substitute(e2, Unary(Deref, a), x) }
 
       case Assign(Unary(Deref, a @ A(_)), v) if isValue(v) =>
-        for (_ <- domodify { (m: Mem) => (throw new UnsupportedOperationException): Mem }) yield v
+        for (_ <- domodify { (m: Mem) => (m+(a,v)): Mem }) yield v
         
       /*** Fill-in more Do cases here. ***/
       case Unary(Cast(_),e1) if (isValue(e1)) => doreturn(e1)
